@@ -7,8 +7,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter.filedialog import askopenfilename
 import vcd_info
+import mplcursors
 
 menuList = ["cut", "copy", "paste", "zoom fit", "zoom in", "zoom out", "undo", "previous", "next"]
+
+mplcursors.cursor(hover=True)
 
 class waveformViewer():
     def __init__(self):
@@ -59,7 +62,7 @@ class waveformViewer():
         # right
         self.rightframe = Frame(self.botframe, padx=10)
         self.rightframe.pack(side=LEFT, anchor='n')
-        self.graph('empty')
+        self.graph()
         self.signals()
 
         # start
@@ -95,7 +98,7 @@ class waveformViewer():
                 self.typeSig(self.scope)
                 self.signals.delete(0, END)
                 if self.emptyGraph==False:
-                    self.graph('empty')
+                    self.graph()
 
         self.tree = ttk.Treeview(self.left1, height=6)
         self.tree.column("#0", width=150, minwidth=150, stretch=NO)
@@ -115,15 +118,20 @@ class waveformViewer():
         def selectItem(a):
             self.selected = [self.tree1.item(i) for i in self.tree1.selection()]
             self.signals.delete(0, END)
+            sel=[]
+            sel2=[]
             for row in self.selected:
                 text = row['text'] + ' ' + ' '.join(row['values'])
-                self.signals.insert(END, text)
-
+                if len(text.split()) == 2:
+                    self.signals.insert(END, text)
+                elif len(text.split()) == 3:
+                    self.signals.insert(END, text.split()[0] + " " + text.split()[1] + str([0]))
                 for sc in vcd_info.signal_abbreviation:
                     for signal in sc:
                         if signal ==' '.join(text.split()[1:len(text.split())]):
-                            print(sc[signal])
-                            self.graph(sc[signal])
+                            sel+=sc[signal]
+                            sel2.append(text)
+            self.graph(sel,sel2)
 
         if scope == 'start':
             self.tree1 = ttk.Treeview(self.left2, selectmode="extended")  # ttkwidgets.Checkbox
@@ -177,17 +185,7 @@ class waveformViewer():
         self.signals = Listbox(self.midframe, width=20, height=30)
         self.signals.pack(fill=BOTH)
 
-    def graph(self,ab):
-        '''
-        input_amp = [1,0,1,0,1,0,1,0,1,0]
-        plt.style.use('dark_background')
-        plt.plot(input_amp, color="#39ff14",linewidth=.5,drawstyle='steps-post')
-        plt.title("Waveform")
-        plt.ylabel('Amplitude')
-        plt.yticks([0,1])
-        plt.xlabel("Time (Seconds)")
-        plt.xticks([i for i in range(10)])
-        plt.show()'''
+    def graph(self,ab='empty',ylabels='empty'):
         if ab=='empty':
             try:
                 self.canvas.get_tk_widget().destroy()
@@ -195,33 +193,61 @@ class waveformViewer():
                 pass
             self.emptyGraph=True
             figure = plt.Figure(figsize=(5, 4), dpi=120)
-            plot = figure.add_subplot(1, 1, 1, yticks=[0, 1], facecolor='black', title="Waveform", ylabel='Amplitude',xlabel="Time (Seconds)")
+            plot = figure.add_subplot(1, 1, 1, yticks=[0, 1], xticks=[0, 1], facecolor='black', title="Waveform", ylabel='Amplitude',xlabel="Time (Seconds)")
             self.canvas = FigureCanvasTkAgg(figure, self.rightframe)
             self.canvas.get_tk_widget().pack(side=RIGHT)
-            plot.plot([0,1],[0,1],color="#39ff14", linewidth=.5, drawstyle='steps-post')
-        else:
+            plot.plot([0,1],[0,1],color="black", linewidth=.5, drawstyle='steps-post')
+        elif len(ab)==1:
             self.emptyGraph=False
             self.canvas.get_tk_widget().destroy()
             figure = plt.Figure(figsize=(5, 4), dpi=120)
-            plot = figure.add_subplot(1, 1, 1, yticks=[0, 1], facecolor='black', title="Waveform", ylabel='Amplitude',xlabel="Time (Seconds)")
+            plot = figure.add_subplot(1, 1, 1, yticks=[0, 1], facecolor='black', title="Waveform", ylabel=ylabels[0],xlabel="Time (Seconds)")
             self.canvas = FigureCanvasTkAgg(figure, self.rightframe)
             self.canvas.get_tk_widget().pack(side=RIGHT)
-            data=vcd_info.signal_change[ab]
+            # print(ab[0])
+            if ab[0] in vcd_info.signal_change.keys():
+                data=vcd_info.signal_change[ab[0]]
+            else:
+                data=vcd_info.signal_change[ab[0]+str([0])]
             y = data[1]
             x = data[0]
-            plot.plot(x,y,color="#39ff14", linewidth=.5, drawstyle='steps-post')       
+            plot.plot(x,y,color="#39ff14", linewidth=.5, drawstyle='steps-post')
+        else:
+            self.emptyGraph=False
+            self.canvas.get_tk_widget().destroy()
 
-        '''
-        data1 = {'Country': ['US', 'CA', 'GER', 'UK', 'FR'],
-                 'GDP_Per_Capita': [45000, 42000, 52000, 49000, 47000]}
-        df1 = DataFrame(data1, columns=['Country', 'GDP_Per_Capita'])
-        figure1 = plt.Figure(figsize=(6, 5), dpi=100)
-        ax1 = figure1.add_subplot(111)
-        bar1 = FigureCanvasTkAgg(figure1, self.rightframe)
-        bar1.get_tk_widget().pack(side=RIGHT)
-        df1 = df1[['Country', 'GDP_Per_Capita']].groupby('Country').sum()
-        df1.plot(kind='bar', legend=True, ax=ax1)
-        ax1.set_title('Country Vs. GDP Per Capita')'''
+            fig, axs = plt.subplots(len(ab),sharex=True)
+            fig.suptitle('Waveform')
+            bigx=[]
+            for i in range(len(ab)):
+                # print(ab[i])
+                if ab[i] in vcd_info.signal_change.keys():
+                    data=vcd_info.signal_change[ab[i]]
+                else:
+                    data=vcd_info.signal_change[ab[i]+str([0])]
+                y=data[1]
+                y = list(map(int, y))
+                x = data[0]
+                x = list(map(int, x))
+                print(x,y)
+                bigx+=x
+                axs[i].plot(x, y,color="#39ff14", linewidth=.5, drawstyle='steps-post')
+                axs[i].set_facecolor('black')
+                axs[i].set_yticks([0,1])
+                axs[i].set(ylabel=ylabels[i])
+                axs[i].set(xlabel='Time (Seconds)')
+                axs[i].label_outer()
+
+            bigx.sort()
+            for ax in axs.flat:
+                
+                ax.set_xticks(bigx)
+                
+                
+            self.canvas = FigureCanvasTkAgg(fig, self.rightframe)
+            self.canvas.get_tk_widget().pack(side=RIGHT)
+            
+            
 
     def openFile(self):
         filename = askopenfilename()

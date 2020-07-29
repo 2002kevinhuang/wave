@@ -12,7 +12,7 @@ $var wire 8 ! sr [7:0] $end
 $var wire 9 " dp [8:0] $end
 $var wire 1 # done $end
 $var wire 8 $ counter [7:0] $end
-$var reg 9 % N [8:0] $end
+$var reg 9  N [8:0] $end
 $var reg 1 & clock $end
 $var reg 1 ' reset $end
 $var reg 1 ( start $end
@@ -45,7 +45,7 @@ b11011100 %
 b0 $
 0#
 b0 "
-b0 !
+b0 !ho 
 $end
 #100
 1&
